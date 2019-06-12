@@ -1,0 +1,63 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+Vagrant.configure("2") do |config|
+
+
+  config.vm.box = "ubuntu/trusty64"
+
+
+  config.vm.network "forwarded_port", guest: 80, host: 80
+  config.vm.network "forwarded_port", guest: 8280, host: 8280
+  config.vm.network "forwarded_port", guest: 443, host: 443
+
+
+  config.vm.network "private_network", ip: "192.168.50.83"
+
+
+  config.vm.hostname = "dev-ei.demo.com"
+
+
+  config.vm.provider "virtualbox" do |vb|
+     vb.memory = "512"
+  end
+
+
+  config.vm.provision "shell", inline: <<-SHELL
+    echo "========================> Updating the system..."
+    sudo apt-get update
+    sudo apt-get install systemd -y
+    echo "========================> Installing the latest nginx..."
+    sudo apt install curl gnupg2 ca-certificates lsb-release -y
+    echo "deb http://nginx.org/packages/ubuntu `lsb_release -cs` nginx" \ | sudo tee /etc/apt/sources.list.d/nginx.list
+    sudo apt update
+    sudo apt-get install nginx --force-yes -y
+    echo "========================> Installing the git..."
+    sudo apt-get install git -y
+    echo "========================> Addning ansible user..."
+    sudo useradd ansible
+    echo ansible:1234 | sudo chpasswd
+    sudo mkdir /home/ansible
+    sudo chown ansible:ansible /home/ansible
+    sudo echo "\nansible ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+    sudo su ansible
+    echo "========================> Cloning the demo-nginx git repo and configure the nginx..."
+    mkdir /home/ansible/demo-nginx
+    sudo mkdir /etc/nginx/ssl
+    cd /home/ansible/demo-nginx
+    git clone https://github.com/sabeywardhana/demo-nginx.git
+    cp demo-nginx/*.conf /etc/nginx/conf.d
+    sudo cp demo-nginx/cert/* /etc/nginx/ssl
+    sudo service nginx stop
+    sudo service nginx start
+    echo "========================> Updating the host db..."
+    sudo echo "\n192.168.50.81 dev-ei01.demo.com\n192.168.50.82 dev-ei02.demo.com\n192.168.50.83 dev-ei.demo.com\n192.168.50.84 dev-mysqldb.demo.com\n192.168.50.85 dev-apps.demo.com\n192.168.50.86 dev-jenkins.demo.com\n192.168.50.87 dev-ei03.demo.com" >> /etc/hosts
+    echo "========================> Custom script is completed..."
+  SHELL
+
+
+end

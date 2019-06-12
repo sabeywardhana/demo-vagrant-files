@@ -1,0 +1,64 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+Vagrant.configure("2") do |config|
+
+
+  config.vm.box = "ubuntu/trusty64"
+
+
+  config.vm.network "forwarded_port", guest: 80, host: 8080
+
+
+  config.vm.network "private_network", ip: "192.168.50.80"
+
+
+  config.vm.hostname = "dev-ansible.demo.com"
+
+
+  config.vm.provision "shell", inline: <<-SHELL
+    echo "========================> Updating the system..."
+    sudo apt-get update
+    sudo apt-get install sshpass
+    echo "========================> Installing the ansible..."
+    sudo apt install software-properties-common
+    echo -e "\n" | sudo apt-add-repository ppa:ansible/ansible
+    sudo apt update
+    sudo apt install ansible -y
+    echo "========================> Installing the git..."
+    sudo apt-get install git -y
+    echo "========================> Addning ansible user..."
+    sudo useradd ansible
+    sudo mkdir /home/ansible
+    sudo chown ansible:ansible /home/ansible
+    sudo echo "\nansible ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+    sudo su ansible
+    echo "========================> Cloning the demo-ei-ansible git repo..."
+    mkdir /home/ansible/ei-ansible
+    cd /home/ansible/ei-ansible
+    git clone https://github.com/sabeywardhana/demo-ei-ansible.git
+    echo "\n192.168.50.[81:87]" >> /etc/ansible/hosts
+    sudo chown -R ansible:ansible /home/ansible
+    sudo su ansible
+    echo "========================> ssh-keygen and ssh-copy-id to other servers..."
+    sudo su ansible
+    echo -e "\n\n\n" | ssh-keygen
+    ssh-keyscan -H 192.168.50.81 >> ~/.ssh/known_hosts
+    ssh-keyscan -H 192.168.50.82 >> ~/.ssh/known_hosts
+    ssh-keyscan -H 192.168.50.83 >> ~/.ssh/known_hosts
+    ssh-keyscan -H 192.168.50.84 >> ~/.ssh/known_hosts
+    sshpass -p "1234" ssh-copy-id 192.168.50.81
+    sshpass -p "1234" ssh-copy-id 192.168.50.82
+    sshpass -p "1234" ssh-copy-id 192.168.50.83
+    sshpass -p "1234" ssh-copy-id 192.168.50.84
+    echo "========================> Updating the host db..."
+    sudo echo "\n192.168.50.81 dev-ei01.demo.com\n192.168.50.82 dev-ei02.demo.com\n192.168.50.83 dev-ei.demo.com\n192.168.50.84 dev-mysqldb.demo.com\n192.168.50.85 dev-apps.demo.com\n192.168.50.86 dev-jenkins.demo.com\n192.168.50.87 dev-ei03.demo.com" >> /etc/hosts
+    echo "========================> Custom script is completed..."
+  SHELL
+
+  
+end
